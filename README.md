@@ -1,7 +1,7 @@
 # MUN Timer
 A Customizable GUI timer designed for MUN. 
 
-Vibe-coded using **Claud 4.5 Sonnet**. Initial Prompt:
+Vibe-coded using **Claude Sonnet 4.5**. Initial Prompt:
 > Create a simple flexible timer app for a Model United Nation (MUN).
 >
 > On the left, there is a numbered list of topics/agenda which can be reordered using up and down buttons, and on the right, there is a timeline of events which can also be reordered. The timeline should be interactable, clicking an event sets the current event to that event. In the center there is the title and subtitle of the current event, and potentially a topic. There could also be a timer if appropriate, the timer should have a pause/resume/reset function, and for moderated caucus there should be two timers, a total time and timer per speaker. There could also be a vote counter/visualize when appropriate, where votes are inputted. 
