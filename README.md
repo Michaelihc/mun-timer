@@ -28,3 +28,29 @@ Vibe-coded using **Claude Sonnet 4.5**. Initial Prompt:
 Notes:
 - Loading JSON will reset the current event selection and re-render the UI.
 - The expected schema matches the `appData` object used by the app: `{ topics: Topic[], events: Event[], delegates: Delegate[], chair: { name: string } }`.
+
+## JSON-configurable timers for all events
+
+- Any event can optionally include a `timer` property (number of seconds). When present and greater than zero, the center panel will show a single timer UI with Start/Pause/Reset controls and a quick input to adjust seconds on the fly.
+- This works for general events and also appears beneath the Voting UI if `timer` is set on a `voting` event.
+- Existing time fields still apply for specific event types:
+	- Moderated caucus: `totalTime` and `speakerTime`
+	- Unmoderated caucus: `duration`
+	- Optional: `timer` can still be added if a separate single-timer is desired.
+
+### Example event snippet
+
+```
+{
+	"id": 42,
+	"type": "general",
+	"title": "Announcements",
+	"subtitle": "Logistics",
+	"topicId": null,
+	"timer": 300
+}
+```
+
+### Chime on timer end
+
+- When any timer reaches zero, the app now plays a short chime sequence (via Web Audio API). The function name remains `playBeep()` for compatibility with existing call sites.

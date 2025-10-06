@@ -14,6 +14,8 @@ let appData = {
             title: 'Opening Ceremony',
             subtitle: 'Welcome and Introduction',
             topicId: null,
+            // Optional generic timer in seconds for any event
+            // timer: 300,
         },
         {
             id: 2,
@@ -38,6 +40,8 @@ let appData = {
             title: 'Voting Procedure',
             subtitle: 'Draft Resolution 1.1',
             topicId: 1,
+            // Example: enable a short voting timer
+            // timer: 120,
         },
         {
             id: 5,
@@ -211,7 +215,12 @@ function setCurrentEvent(index) {
             content += renderVoting(event);
             break;
         default:
-            content += '<div style="margin-top: 40px; color: #999;">No timer for this event</div>';
+            // For general/other events, show generic timer if configured
+            if (typeof event.timer === 'number' && event.timer > 0) {
+                content += renderGenericTimer(event);
+            } else {
+                content += '<div style="margin-top: 40px; color: #999;">No timer for this event</div>';
+            }
     }
 
     display.innerHTML = content;
@@ -271,7 +280,7 @@ function renderUnmoderatedCaucus(event) {
 
 // Render Voting
 function renderVoting(event) {
-    return `
+    let html = `
                 <div class="voting-container">
                     <div class="vote-inputs">
                         <div class="vote-input-group for">
@@ -293,6 +302,33 @@ function renderVoting(event) {
                         <div class="vote-bar abstain" style="width: 33.33%">0</div>
                     </div>
                     <div class="vote-result" id="voteResult" style="display: none;"></div>
+                </div>
+            `;
+    if (typeof event.timer === 'number' && event.timer > 0) {
+        html += renderGenericTimer(event);
+    }
+    return html;
+}
+
+// Render a generic single timer based on event.timer (seconds)
+function renderGenericTimer(event) {
+    timers.total.time = event.timer;
+    timers.total.initial = event.timer;
+
+    // Timer UI plus quick-config input
+    return `
+                <div class="timer-display" id="totalTimer">${formatTime(
+        timers.total.time
+    )}</div>
+                <div class="timer-controls">
+                    <button class="timer-btn" onclick="startTimer('total')">Start</button>
+                    <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
+                    <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
+                </div>
+                <div class="timer-config">
+                    <label for="genericTimerSeconds">Timer (seconds)</label>
+                    <input type="number" id="genericTimerSeconds" min="0" value="${event.timer}" />
+                    <button class="timer-btn" onclick="applyGenericTimerSeconds()">Apply</button>
                 </div>
             `;
 }
@@ -357,25 +393,59 @@ function resetTimer(type) {
 }
 
 function playBeep() {
-    // Simple beep using Web Audio API
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // Pleasant chime sequence using Web Audio API (keeps function name)
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+        const notes = [
+            { freq: 660, start: 0.0, dur: 0.14, vol: 0.25 }, // E5
+            { freq: 880, start: 0.16, dur: 0.14, vol: 0.22 }, // A5
+            { freq: 1320, start: 0.32, dur: 0.22, vol: 0.20 }, // E6
+        ];
 
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
+        notes.forEach(({ freq, start, dur, vol }) => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + start);
+            gain.gain.setValueAtTime(0.0001, now + start);
+            gain.gain.exponentialRampToValueAtTime(Math.max(0.001, vol), now + start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(now + start);
+            osc.stop(now + start + dur + 0.02);
+        });
+    } catch (e) {
+        // Fallback: no-op if audio context fails
+        // console.warn('Audio playback failed', e);
+    }
+}
 
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-        0.01,
-        audioContext.currentTime + 0.5
-    );
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
+// Apply changes from the generic timer seconds input
+function applyGenericTimerSeconds() {
+    const input = document.getElementById('genericTimerSeconds');
+    if (!input) return;
+    const seconds = parseInt(input.value, 10);
+    if (Number.isNaN(seconds) || seconds < 0) {
+        alert('Please enter a valid non-negative number of seconds.');
+        return;
+    }
+    // Stop current timer and apply new value
+    stopTimer('total');
+    timers.total.initial = seconds;
+    timers.total.time = seconds;
+    const el = document.getElementById('totalTimer');
+    if (el) {
+        el.textContent = formatTime(seconds);
+        el.classList.remove('warning', 'danger');
+    }
+    // Update current event's JSON so saving will persist it
+    const ev = appData.events[currentEventIndex];
+    if (ev) {
+        ev.timer = seconds;
+    }
 }
 
 // Voting Functions
@@ -659,6 +729,10 @@ function validateAppData(data) {
             if (typeof ev.duration !== 'number') {
                 throw new Error(`Unmoderated event missing duration at index ${i}`);
             }
+        }
+        // Optional: generic timer in seconds for any event type
+        if (ev.timer !== undefined && (typeof ev.timer !== 'number' || ev.timer < 0)) {
+            throw new Error(`Event at index ${i} has invalid timer (must be a non-negative number of seconds)`);
         }
     });
     data.delegates.forEach((d, i) => {

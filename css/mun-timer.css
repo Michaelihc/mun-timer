@@ -237,6 +237,29 @@ body {
     background: #dc3545;
 }
 
+/* Generic timer quick config */
+.timer-config {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.timer-config label {
+    color: #666;
+    font-weight: 600;
+}
+
+.timer-config input[type="number"] {
+    width: 120px;
+    padding: 8px 10px;
+    border: 2px solid #667eea;
+    border-radius: 6px;
+    font-size: 1em;
+    text-align: center;
+}
+
 /* Dual Timer for Moderated Caucus */
 .dual-timer {
     display: flex;
