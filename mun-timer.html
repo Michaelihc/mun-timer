@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUN Timer App</title>
+    <link rel="stylesheet" href="css/mun-timer.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Left Panel: Topics/Agenda -->
+        <div class="panel left-panel">
+            <h2>📋 Topics & Agenda</h2>
+            <div id="topicsList"></div>
+            <button class="add-button" onclick="addNewTopic()">+ Add Topic</button>
+        </div>
+
+        <!-- Center Panel: Current Event Display -->
+        <div class="panel center-panel">
+            <div class="control-buttons">
+                <button class="control-btn" onclick="openAddEventModal()">+ Add Event</button>
+                <button class="control-btn" onclick="openJSONEditor()">Edit JSON</button>
+                <button class="control-btn" onclick="copyJSON()">Copy JSON</button>
+            </div>
+            <div id="eventDisplay" class="event-display">
+                <div class="event-title">Welcome to MUN</div>
+                <div class="event-subtitle">Select an event to begin</div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Timeline -->
+        <div class="panel right-panel">
+            <h2>⏱️ Timeline</h2>
+            <div id="timelineList"></div>
+            <button class="add-button" onclick="openAddEventModal()">+ Add Event</button>
+        </div>
+    </div>
+
+    <!-- Delegates Bar -->
+    <div class="delegates-bar" id="delegatesBar"></div>
+
+    <!-- Add Event Modal -->
+    <div class="modal" id="addEventModal">
+        <div class="modal-content">
+            <h2>Add New Event</h2>
+            <div class="form-group">
+                <label>Event Type</label>
+                <select id="newEventType" onchange="updateEventForm()">
+                    <option value="general">General</option>
+                    <option value="moderated">Moderated Caucus</option>
+                    <option value="unmoderated">Unmoderated Caucus</option>
+                    <option value="voting">Voting</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="newEventTitle" placeholder="Event Title">
+            </div>
+            <div class="form-group">
+                <label>Subtitle</label>
+                <input type="text" id="newEventSubtitle" placeholder="Event Subtitle">
+            </div>
+            <div class="form-group">
+                <label>Topic (Optional)</label>
+                <select id="newEventTopic">
+                    <option value="">None</option>
+                </select>
+            </div>
+            <div id="eventSpecificFields"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeAddEventModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="addNewEvent()">Add Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON Editor Modal -->
+    <div class="modal" id="jsonEditorModal">
+        <div class="modal-content">
+            <h2>Edit JSON Data</h2>
+            <div class="form-group">
+                <label>JSON Data</label>
+                <textarea id="jsonEditor"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeJSONEditor()">Cancel</button>
+                <button class="modal-btn primary" onclick="saveJSON()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mun-timer.js" defer></script>
+</body>
+
+</html>
