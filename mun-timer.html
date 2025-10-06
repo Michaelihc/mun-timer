@@ -23,6 +23,8 @@
                 <button class="control-btn" onclick="openAddEventModal()">+ Add Event</button>
                 <button class="control-btn" onclick="openJSONEditor()">Edit JSON</button>
                 <button class="control-btn" onclick="copyJSON()">Copy JSON</button>
+                <button class="control-btn" onclick="downloadJSON()">Save JSON</button>
+                <button class="control-btn" onclick="triggerLoadJSON()">Load JSON</button>
             </div>
             <div id="eventDisplay" class="event-display">
                 <div class="event-title">Welcome to MUN</div>
@@ -92,6 +94,8 @@
     </div>
 
     <script src="js/mun-timer.js" defer></script>
+    <!-- Hidden file input for loading JSON -->
+    <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" aria-hidden="true" />
 </body>
 
 </html>

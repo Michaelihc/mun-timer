@@ -19,3 +19,12 @@ Vibe-coded using **Claud 4.5 Sonnet**. Initial Prompt:
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/b1f2f437-3efd-4598-9536-f36cdade5395" />
 
 67
+
+## Save/Load JSON
+
+- Save JSON: Click "Save JSON" to download the current configuration (topics, events, delegates, chair) as a `.json` file. The filename includes a timestamp.
+- Load JSON: Click "Load JSON" and choose a previously saved `.json` file to restore the configuration. The file is validated for basic shape before applying.
+
+Notes:
+- Loading JSON will reset the current event selection and re-render the UI.
+- The expected schema matches the `appData` object used by the app: `{ topics: Topic[], events: Event[], delegates: Delegate[], chair: { name: string } }`.

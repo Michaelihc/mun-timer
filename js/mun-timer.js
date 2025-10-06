@@ -577,5 +577,96 @@ function copyJSON() {
     });
 }
 
+// Save/Load JSON to/from local file
+function downloadJSON() {
+    try {
+        const dataStr = JSON.stringify(appData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date()
+            .toISOString()
+            .replace(/[:]/g, '-')
+            .replace('T', '_')
+            .replace(/\..+/, '');
+        a.href = url;
+        a.download = `mun-timer_${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Failed to save JSON: ' + e.message);
+    }
+}
+
+function triggerLoadJSON() {
+    const input = document.getElementById('jsonFileInput');
+    if (!input) {
+        alert('File input not found.');
+        return;
+    }
+    input.value = '';
+    input.onchange = handleLoadJSONFromFile;
+    input.click();
+}
+
+function handleLoadJSONFromFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const text = e.target.result;
+            const parsed = JSON.parse(text);
+            validateAppData(parsed);
+            appData = parsed;
+            currentEventIndex = 0;
+            init();
+            alert('JSON loaded successfully.');
+        } catch (err) {
+            alert('Failed to load JSON: ' + err.message);
+        }
+    };
+    reader.onerror = function () {
+        alert('Error reading file.');
+    };
+    reader.readAsText(file);
+}
+
+function validateAppData(data) {
+    if (typeof data !== 'object' || data === null) throw new Error('Data must be an object');
+    if (!Array.isArray(data.topics)) throw new Error('Missing topics array');
+    if (!Array.isArray(data.events)) throw new Error('Missing events array');
+    if (!Array.isArray(data.delegates)) throw new Error('Missing delegates array');
+    if (!data.chair || typeof data.chair.name !== 'string') throw new Error('Missing chair name');
+    // Basic per-item checks (non-exhaustive)
+    data.topics.forEach((t, i) => {
+        if (typeof t.id !== 'number' || typeof t.title !== 'string') {
+            throw new Error(`Invalid topic at index ${i}`);
+        }
+    });
+    data.events.forEach((ev, i) => {
+        if (typeof ev.id !== 'number' || typeof ev.type !== 'string' || typeof ev.title !== 'string') {
+            throw new Error(`Invalid event at index ${i}`);
+        }
+        if (ev.type === 'moderated') {
+            if (typeof ev.totalTime !== 'number' || typeof ev.speakerTime !== 'number') {
+                throw new Error(`Moderated event missing times at index ${i}`);
+            }
+        }
+        if (ev.type === 'unmoderated') {
+            if (typeof ev.duration !== 'number') {
+                throw new Error(`Unmoderated event missing duration at index ${i}`);
+            }
+        }
+    });
+    data.delegates.forEach((d, i) => {
+        if (typeof d.id !== 'number' || typeof d.code !== 'string' || typeof d.name !== 'string') {
+            throw new Error(`Invalid delegate at index ${i}`);
+        }
+    });
+}
+
 // Initialize on load
 window.addEventListener('DOMContentLoaded', init);
