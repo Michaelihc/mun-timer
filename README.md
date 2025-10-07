@@ -14,7 +14,8 @@ Vibe-coded using **Claude Sonnet 4.5**. Initial Prompt:
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/970ca463-e6fb-422d-b293-8ce002d95b5b" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/55079492-8a9d-4372-88b0-e3ad3845ac08" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/ad3248a0-c82f-4af3-8d14-6b92e19fa2b6" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/f3959f81-e518-4abb-87f6-27c0bda8bac3" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/cda9e289-0609-445f-8c45-4ef33c3d635b" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/205acc5c-55e4-4d82-9c4d-4b2f9414f88b" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/ab270698-e9b6-46eb-959e-653ef8c01d4f" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/b1f2f437-3efd-4598-9536-f36cdade5395" />
 
