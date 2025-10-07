@@ -50,7 +50,3 @@ Notes:
 	"timer": 300
 }
 ```
-
-### Chime on timer end
-
-- When any timer reaches zero, the app now plays a short chime sequence (via Web Audio API). The function name remains `playBeep()` for compatibility with existing call sites.

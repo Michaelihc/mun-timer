@@ -73,6 +73,22 @@ let appData = {
         { id: 10, code: 'CAN', name: 'Canada' },
     ],
     chair: { name: 'Chair' },
+    votingConfig: {
+        majorityMode: 'simple', // 'simple' | 'twoThirds' | 'securityCouncil' | 'consensus'
+        voteType: 'substantive', // 'substantive' | 'procedural' (controls abstentions)
+        securityCouncil: {
+            members: ['USA', 'CHN', 'GBR', 'FRA', 'RUS', 'DEU', 'JPN', 'IND', 'BRA', 'CAN',],
+            p5: ['USA', 'CHN', 'GBR', 'FRA', 'RUS'],
+            requiredYes: 9,
+        },
+    },
+    speechesDefaults: {
+        round1Seconds: 120,
+        round2Seconds: 120,
+        rightOfReplySeconds: 60,
+    },
+    // Store voting results per event
+    votingResults: {},
 };
 
 let currentEventIndex = 0;
@@ -81,8 +97,38 @@ let timers = {
     speaker: { time: 0, interval: null, running: false, initial: 0 },
 };
 
+// Ensure optional configs exist when loading/applying JSON
+function ensureDefaults() {
+    // Voting config
+    if (!appData.votingConfig) appData.votingConfig = {};
+    if (!appData.votingConfig.majorityMode) appData.votingConfig.majorityMode = 'simple';
+    if (!appData.votingConfig.voteType) appData.votingConfig.voteType = 'substantive';
+    if (!appData.votingConfig.securityCouncil) {
+        const codes = (appData.delegates || []).map(d => d.code);
+        appData.votingConfig.securityCouncil = {
+            members: codes.length ? codes.slice(0, Math.min(15, Math.max(10, codes.length))) : ['USA', 'CHN', 'GBR', 'FRA', 'RUS', 'DEU', 'JPN', 'IND', 'BRA', 'CAN'],
+            p5: ['USA', 'CHN', 'GBR', 'FRA', 'RUS'],
+            requiredYes: 9,
+        };
+    } else {
+        const sc = appData.votingConfig.securityCouncil;
+        if (!Array.isArray(sc.members)) sc.members = [];
+        if (!Array.isArray(sc.p5)) sc.p5 = ['USA', 'CHN', 'GBR', 'FRA', 'RUS'];
+        if (typeof sc.requiredYes !== 'number' || sc.requiredYes < 1) sc.requiredYes = 9;
+    }
+    // Speeches defaults
+    if (!appData.speechesDefaults) {
+        appData.speechesDefaults = { round1Seconds: 120, round2Seconds: 120, rightOfReplySeconds: 60 };
+    }
+    // Voting results storage
+    if (!appData.votingResults) {
+        appData.votingResults = {};
+    }
+}
+
 // Initialize App
 function init() {
+    ensureDefaults();
     renderTopics();
     renderTimeline();
     renderDelegates();
@@ -178,6 +224,11 @@ function moveEvent(index, direction) {
 
 // Set Current Event
 function setCurrentEvent(index) {
+    // Save voting data from current event before switching
+    if (currentEventIndex >= 0 && appData.events[currentEventIndex] && appData.events[currentEventIndex].type === 'voting') {
+        saveVotingData();
+    }
+
     currentEventIndex = index;
     const event = appData.events[index];
 
@@ -214,6 +265,9 @@ function setCurrentEvent(index) {
         case 'voting':
             content += renderVoting(event);
             break;
+        case 'speeches':
+            content += renderGeneralSpeeches(event);
+            break;
         default:
             // For general/other events, show generic timer if configured
             if (typeof event.timer === 'number' && event.timer > 0) {
@@ -224,6 +278,11 @@ function setCurrentEvent(index) {
     }
 
     display.innerHTML = content;
+    // Initialize vote visualization if voting
+    if (event.type === 'voting') {
+        loadVotingData();
+        updateVoteVisualization();
+    }
 }
 
 // Render Moderated Caucus
@@ -280,21 +339,27 @@ function renderUnmoderatedCaucus(event) {
 
 // Render Voting
 function renderVoting(event) {
+    const mode = appData.votingConfig?.majorityMode || 'simple';
+    const voteType = appData.votingConfig?.voteType || 'substantive';
     let html = `
                 <div class="voting-container">
-                    <div class="vote-inputs">
-                        <div class="vote-input-group for">
-                            <label>For</label>
-                            <input type="number" id="voteFor" value="0" min="0" oninput="updateVoteVisualization()">
-                        </div>
-                        <div class="vote-input-group against">
-                            <label>Against</label>
-                            <input type="number" id="voteAgainst" value="0" min="0" oninput="updateVoteVisualization()">
-                        </div>
-                        <div class="vote-input-group abstain">
-                            <label>Abstain</label>
-                            <input type="number" id="voteAbstain" value="0" min="0" oninput="updateVoteVisualization()">
-                        </div>
+                    <div class="vote-mode">
+                        <label for="majorityMode">Required Majority</label>
+                        <select id="majorityMode" onchange="onMajorityModeChange()">
+                            <option value="simple" ${mode === 'simple' ? 'selected' : ''}>Simple Majority</option>
+                            <option value="twoThirds" ${mode === 'twoThirds' ? 'selected' : ''}>Two Thirds Majority</option>
+                            <option value="securityCouncil" ${mode === 'securityCouncil' ? 'selected' : ''}>Security Council</option>
+                            <option value="consensus" ${mode === 'consensus' ? 'selected' : ''}>Consensus Vote</option>
+                        </select>
+                        <button class="sc-config-btn" onclick="openSCConfig()" title="Configure Security Council" ${mode === 'securityCouncil' ? '' : 'style="display:none"'}>Configure SC</button>
+                        <label for="voteType">Vote Type</label>
+                        <select id="voteType" onchange="onVoteTypeChange()">
+                            <option value="substantive" ${voteType === 'substantive' ? 'selected' : ''}>Substantive</option>
+                            <option value="procedural" ${voteType === 'procedural' ? 'selected' : ''}>Procedural</option>
+                        </select>
+                    </div>
+                    <div class="vote-inputs" id="voteInputs">
+                        ${renderVoteInputs(mode)}
                     </div>
                     <div class="vote-visualizer" id="voteVisualizer">
                         <div class="vote-bar for" style="width: 33.33%">0</div>
@@ -308,6 +373,58 @@ function renderVoting(event) {
         html += renderGenericTimer(event);
     }
     return html;
+}
+
+function renderVoteInputs(mode) {
+    const voteType = appData.votingConfig?.voteType || 'substantive';
+    if (mode === 'securityCouncil') {
+        const sc = appData.votingConfig.securityCouncil;
+        const members = sc.members;
+        // Build per-member selectors: Yes/No/Abstain
+        return `
+            <div class="sc-vote-grid">
+                ${members.map(code => `
+                    <div class="sc-vote-row" data-code="${code}">
+                        <div class="sc-vote-country">${code}${sc.p5.includes(code) ? ' *' : ''}</div>
+                        <select class="sc-vote-select" onchange="updateVoteVisualization()">
+                            ${voteType === 'procedural' ? `
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            ` : `
+                                <option value="abstain">Abstain</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            `}
+                        </select>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    // Default triplet numeric inputs
+    return voteType === 'procedural' ? `
+        <div class="vote-input-group for">
+            <label>For</label>
+            <input type="number" id="voteFor" value="0" min="0" oninput="updateVoteVisualization()">
+        </div>
+        <div class="vote-input-group against">
+            <label>Against</label>
+            <input type="number" id="voteAgainst" value="0" min="0" oninput="updateVoteVisualization()">
+        </div>
+    ` : `
+        <div class="vote-input-group for">
+            <label>For</label>
+            <input type="number" id="voteFor" value="0" min="0" oninput="updateVoteVisualization()">
+        </div>
+        <div class="vote-input-group against">
+            <label>Against</label>
+            <input type="number" id="voteAgainst" value="0" min="0" oninput="updateVoteVisualization()">
+        </div>
+        <div class="vote-input-group abstain">
+            <label>Abstain</label>
+            <input type="number" id="voteAbstain" value="0" min="0" oninput="updateVoteVisualization()">
+        </div>
+    `;
 }
 
 // Render a generic single timer based on event.timer (seconds)
@@ -450,55 +567,340 @@ function applyGenericTimerSeconds() {
 
 // Voting Functions
 function updateVoteVisualization() {
-    const forVotes = parseInt(document.getElementById('voteFor').value) || 0;
-    const againstVotes =
-        parseInt(document.getElementById('voteAgainst').value) || 0;
-    const abstainVotes =
-        parseInt(document.getElementById('voteAbstain').value) || 0;
+    const mode = document.getElementById('majorityMode')?.value || appData.votingConfig.majorityMode || 'simple';
+    const voteType = document.getElementById('voteType')?.value || appData.votingConfig.voteType || 'substantive';
+    let forVotes = 0, againstVotes = 0, abstainVotes = 0;
 
-    const total = forVotes + againstVotes + abstainVotes;
-
-    if (total === 0) {
-        document.getElementById('voteVisualizer').innerHTML = `
-                    <div class="vote-bar for" style="width: 33.33%">0</div>
-                    <div class="vote-bar against" style="width: 33.33%">0</div>
-                    <div class="vote-bar abstain" style="width: 33.33%">0</div>
-                `;
-        document.getElementById('voteResult').style.display = 'none';
+    if (mode === 'securityCouncil') {
+        // Count per-member decisions
+        const selects = Array.from(document.querySelectorAll('.sc-vote-select'));
+        let veto = null;
+        let yes = 0, no = 0, abstain = 0;
+        const sc = appData.votingConfig.securityCouncil;
+        selects.forEach((sel, idx) => {
+            const row = sel.closest('.sc-vote-row');
+            const code = row?.getAttribute('data-code');
+            const val = sel.value;
+            if (val === 'yes') yes++;
+            else if (val === 'no') {
+                no++;
+                if (code && sc.p5.includes(code)) veto = code;
+            } else abstain++;
+        });
+        forVotes = yes; againstVotes = no; abstainVotes = abstain;
+        // Visualizer: percent out of members
+        const total = Math.max(1, sc.members.length);
+        const forPercent = (forVotes / total) * 100;
+        const againstPercent = (againstVotes / total) * 100;
+        const abstainPercent = (abstainVotes / total) * 100;
+        let html = '';
+        if (forVotes > 0) html += `<div class="vote-bar for" style="width: ${forPercent}%">${forVotes}</div>`;
+        if (againstVotes > 0) html += `<div class="vote-bar against" style="width: ${againstPercent}%">${againstVotes}</div>`;
+        if (abstainVotes > 0) html += `<div class="vote-bar abstain" style="width: ${abstainPercent}%">${abstainVotes}</div>`;
+        document.getElementById('voteVisualizer').innerHTML = html || (voteType === 'procedural' ? `
+            <div class="vote-bar for" style="width: 50%">0</div>
+            <div class="vote-bar against" style="width: 50%">0</div>` : `
+            <div class="vote-bar for" style="width: 33.33%">0</div>
+            <div class="vote-bar against" style="width: 33.33%">0</div>
+            <div class="vote-bar abstain" style="width: 33.33%">0</div>`);
+        const resultElement = document.getElementById('voteResult');
+        const pass = yes >= (sc.requiredYes || 9) && !veto;
+        resultElement.style.display = 'block';
+        if (pass) {
+            resultElement.textContent = 'PASSED' + (veto ? ' (Vetoed)' : '');
+            resultElement.className = 'vote-result passed';
+        } else {
+            resultElement.textContent = veto ? `FAILED (Veto by ${veto})` : 'FAILED';
+            resultElement.className = 'vote-result failed';
+        }
         return;
     }
 
-    const forPercent = (forVotes / total) * 100;
-    const againstPercent = (againstVotes / total) * 100;
-    const abstainPercent = (abstainVotes / total) * 100;
+    // Numeric inputs mode
+    forVotes = parseInt(document.getElementById('voteFor')?.value) || 0;
+    againstVotes = parseInt(document.getElementById('voteAgainst')?.value) || 0;
+    abstainVotes = parseInt(document.getElementById('voteAbstain')?.value) || 0;
+    const total = forVotes + againstVotes + abstainVotes;
 
+    const forPercent = total ? (forVotes / total) * 100 : 33.33;
+    const againstPercent = total ? (againstVotes / total) * 100 : 33.33;
+    const abstainPercent = total ? (abstainVotes / total) * 100 : 33.33;
     let html = '';
-    if (forVotes > 0) {
-        html += `<div class="vote-bar for" style="width: ${forPercent}%">${forVotes}</div>`;
-    }
-    if (againstVotes > 0) {
-        html += `<div class="vote-bar against" style="width: ${againstPercent}%">${againstVotes}</div>`;
-    }
-    if (abstainVotes > 0) {
-        html += `<div class="vote-bar abstain" style="width: ${abstainPercent}%">${abstainVotes}</div>`;
-    }
+    if (forVotes > 0) html += `<div class="vote-bar for" style="width: ${forPercent}%">${forVotes}</div>`;
+    if (againstVotes > 0) html += `<div class="vote-bar against" style="width: ${againstPercent}%">${againstVotes}</div>`;
+    if (abstainVotes > 0) html += `<div class="vote-bar abstain" style="width: ${abstainPercent}%">${abstainVotes}</div>`;
+    document.getElementById('voteVisualizer').innerHTML = html || (voteType === 'procedural' ? `
+        <div class="vote-bar for" style="width: 50%">0</div>
+        <div class="vote-bar against" style="width: 50%">0</div>` : `
+        <div class="vote-bar for" style="width: 33.33%">0</div>
+        <div class="vote-bar against" style="width: 33.33%">0</div>
+        <div class="vote-bar abstain" style="width: 33.33%">0</div>`);
 
-    document.getElementById('voteVisualizer').innerHTML = html;
-
-    // Determine result
     const resultElement = document.getElementById('voteResult');
-    if (forVotes > againstVotes) {
+    let passed = false; let tie = false;
+    const presentAndVoting = forVotes + againstVotes; // abstentions excluded
+    switch (mode) {
+        case 'twoThirds':
+            passed = presentAndVoting > 0 && forVotes >= Math.ceil((2 / 3) * presentAndVoting);
+            break;
+        case 'consensus':
+            passed = againstVotes === 0 && (forVotes > 0 || abstainVotes > 0);
+            break;
+        case 'simple':
+        default:
+            passed = presentAndVoting > 0 && forVotes > againstVotes; // >50% of P&V
+            tie = forVotes === againstVotes && presentAndVoting > 0;
+    }
+    resultElement.style.display = 'block';
+    if (passed) {
         resultElement.textContent = 'PASSED';
         resultElement.className = 'vote-result passed';
-        resultElement.style.display = 'block';
-    } else if (againstVotes > forVotes) {
-        resultElement.textContent = 'FAILED';
-        resultElement.className = 'vote-result failed';
-        resultElement.style.display = 'block';
-    } else {
+    } else if (tie) {
         resultElement.textContent = 'TIE';
         resultElement.className = 'vote-result';
-        resultElement.style.display = 'block';
+    } else {
+        resultElement.textContent = 'FAILED';
+        resultElement.className = 'vote-result failed';
+    }
+}
+
+function onMajorityModeChange() {
+    const sel = document.getElementById('majorityMode');
+    if (!sel) return;
+    const mode = sel.value;
+    appData.votingConfig.majorityMode = mode;
+    // Toggle SC config button
+    const btn = document.querySelector('.sc-config-btn');
+    if (btn) btn.style.display = mode === 'securityCouncil' ? '' : 'none';
+    // Re-render vote inputs
+    const inputs = document.getElementById('voteInputs');
+    if (inputs) {
+        inputs.innerHTML = renderVoteInputs(mode);
+    }
+    // Reset visualization
+    updateVoteVisualization();
+}
+
+// Save voting data for the current event
+function saveVotingData() {
+    if (!appData.events[currentEventIndex] || appData.events[currentEventIndex].type !== 'voting') {
+        return; // Not a voting event
+    }
+
+    const eventId = appData.events[currentEventIndex].id;
+    const mode = document.getElementById('majorityMode')?.value || appData.votingConfig.majorityMode;
+    const voteType = document.getElementById('voteType')?.value || appData.votingConfig.voteType;
+
+    const votingData = {
+        mode: mode,
+        voteType: voteType,
+        timestamp: new Date().toISOString()
+    };
+
+    if (mode === 'securityCouncil') {
+        // Save per-member votes
+        const selects = Array.from(document.querySelectorAll('.sc-vote-select'));
+        votingData.scVotes = {};
+        selects.forEach((sel) => {
+            const row = sel.closest('.sc-vote-row');
+            const code = row?.getAttribute('data-code');
+            if (code) {
+                votingData.scVotes[code] = sel.value;
+            }
+        });
+    } else {
+        // Save numeric votes
+        votingData.forVotes = parseInt(document.getElementById('voteFor')?.value) || 0;
+        votingData.againstVotes = parseInt(document.getElementById('voteAgainst')?.value) || 0;
+        votingData.abstainVotes = parseInt(document.getElementById('voteAbstain')?.value) || 0;
+    }
+
+    // Check if data has actually changed
+    const previousData = appData.votingResults[eventId];
+    if (hasVotingDataChanged(previousData, votingData)) {
+        appData.votingResults[eventId] = votingData;
+        // Auto-save to JSON file only if changed
+        autoSaveToFile();
+    }
+}// Check if voting data has changed from previous save
+function hasVotingDataChanged(previousData, newData) {
+    // No previous data means it's new/changed
+    if (!previousData) {
+        // But only if there's actual vote data entered
+        if (newData.mode === 'securityCouncil') {
+            // Check if any SC votes are not at default (abstain for substantive, or any selection for procedural)
+            const scVotes = newData.scVotes || {};
+            const defaultValue = newData.voteType === 'procedural' ? 'yes' : 'abstain';
+            return Object.values(scVotes).some(vote => vote !== defaultValue);
+        } else {
+            // Check if any numeric votes are non-zero
+            return (newData.forVotes || 0) !== 0 ||
+                (newData.againstVotes || 0) !== 0 ||
+                (newData.abstainVotes || 0) !== 0;
+        }
+    }
+
+    // Compare mode and voteType
+    if (previousData.mode !== newData.mode || previousData.voteType !== newData.voteType) {
+        return true;
+    }
+
+    // Compare votes based on mode
+    if (newData.mode === 'securityCouncil') {
+        const prevVotes = previousData.scVotes || {};
+        const newVotes = newData.scVotes || {};
+        const allCodes = new Set([...Object.keys(prevVotes), ...Object.keys(newVotes)]);
+        for (const code of allCodes) {
+            if (prevVotes[code] !== newVotes[code]) {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        return (previousData.forVotes || 0) !== (newData.forVotes || 0) ||
+            (previousData.againstVotes || 0) !== (newData.againstVotes || 0) ||
+            (previousData.abstainVotes || 0) !== (newData.abstainVotes || 0);
+    }
+}
+
+// Load voting data for the current event
+function loadVotingData() {
+    if (!appData.events[currentEventIndex] || appData.events[currentEventIndex].type !== 'voting') {
+        return; // Not a voting event
+    }
+
+    const eventId = appData.events[currentEventIndex].id;
+    const savedData = appData.votingResults[eventId];
+
+    if (!savedData) {
+        return; // No saved data
+    }
+
+    // Restore mode and type
+    if (savedData.mode) {
+        appData.votingConfig.majorityMode = savedData.mode;
+        const modeSelect = document.getElementById('majorityMode');
+        if (modeSelect) modeSelect.value = savedData.mode;
+    }
+
+    if (savedData.voteType) {
+        appData.votingConfig.voteType = savedData.voteType;
+        const typeSelect = document.getElementById('voteType');
+        if (typeSelect) typeSelect.value = savedData.voteType;
+    }
+
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+        if (savedData.mode === 'securityCouncil' && savedData.scVotes) {
+            // Restore per-member votes
+            Object.keys(savedData.scVotes).forEach((code) => {
+                const row = document.querySelector(`.sc-vote-row[data-code="${code}"]`);
+                if (row) {
+                    const select = row.querySelector('.sc-vote-select');
+                    if (select) select.value = savedData.scVotes[code];
+                }
+            });
+        } else {
+            // Restore numeric votes
+            const forInput = document.getElementById('voteFor');
+            const againstInput = document.getElementById('voteAgainst');
+            const abstainInput = document.getElementById('voteAbstain');
+
+            if (forInput && savedData.forVotes !== undefined) forInput.value = savedData.forVotes;
+            if (againstInput && savedData.againstVotes !== undefined) againstInput.value = savedData.againstVotes;
+            if (abstainInput && savedData.abstainVotes !== undefined) abstainInput.value = savedData.abstainVotes;
+        }
+
+        updateVoteVisualization();
+    }, 10);
+}
+
+// Auto-save data to local JSON file
+function autoSaveToFile() {
+    try {
+        const dataStr = JSON.stringify(appData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mun-timer-autosave.json';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    } catch (e) {
+        console.error('Auto-save failed:', e);
+    }
+}
+
+function onVoteTypeChange() {
+    const sel = document.getElementById('voteType');
+    if (!sel) return;
+    const voteType = sel.value;
+    appData.votingConfig.voteType = voteType;
+    // Re-render inputs based on vote type and mode
+    const modeSel = document.getElementById('majorityMode');
+    const mode = modeSel ? modeSel.value : appData.votingConfig.majorityMode;
+    const inputs = document.getElementById('voteInputs');
+    if (inputs) {
+        inputs.innerHTML = renderVoteInputs(mode);
+    }
+    updateVoteVisualization();
+}
+
+// Security Council config modal
+function openSCConfig() {
+    const modal = document.getElementById('scConfigModal');
+    if (!modal) return;
+    populateSCModal();
+    modal.classList.add('active');
+}
+function closeSCConfig() {
+    const modal = document.getElementById('scConfigModal');
+    if (!modal) return;
+    modal.classList.remove('active');
+}
+function populateSCModal() {
+    const sc = appData.votingConfig.securityCouncil;
+    const membersList = document.getElementById('scMembersList');
+    const p5List = document.getElementById('scP5List');
+    if (!membersList || !p5List) return;
+    // Members: checkbox list of all delegates
+    membersList.innerHTML = appData.delegates.map(d => {
+        const checked = sc.members.includes(d.code) ? 'checked' : '';
+        return `<label class="sc-item"><input type="checkbox" class="sc-member" value="${d.code}" ${checked}> ${d.name} (${d.code})</label>`;
+    }).join('');
+    // P5: checkbox list but only those in members enabled
+    p5List.innerHTML = appData.delegates.map(d => {
+        const checked = sc.p5.includes(d.code) ? 'checked' : '';
+        const disabled = sc.members.includes(d.code) ? '' : 'disabled';
+        return `<label class="sc-item"><input type="checkbox" class="sc-p5" value="${d.code}" ${checked} ${disabled}> ${d.name} (${d.code})</label>`;
+    }).join('');
+}
+function scSelectStandardP5() {
+    const checkboxes = document.querySelectorAll('#scP5List .sc-p5');
+    const standard = ['USA', 'CHN', 'GBR', 'FRA', 'RUS'];
+    checkboxes.forEach(cb => {
+        cb.checked = standard.includes(cb.value);
+    });
+}
+function saveSCConfig() {
+    const memberCbs = Array.from(document.querySelectorAll('#scMembersList .sc-member'));
+    const p5Cbs = Array.from(document.querySelectorAll('#scP5List .sc-p5'));
+    const members = memberCbs.filter(cb => cb.checked).map(cb => cb.value);
+    const p5 = p5Cbs.filter(cb => cb.checked && members.includes(cb.value)).map(cb => cb.value);
+    appData.votingConfig.securityCouncil.members = members;
+    appData.votingConfig.securityCouncil.p5 = p5;
+    closeSCConfig();
+    // If currently on voting UI and SC mode, re-render inputs
+    const sel = document.getElementById('majorityMode');
+    if (sel && sel.value === 'securityCouncil') {
+        const inputs = document.getElementById('voteInputs');
+        if (inputs) inputs.innerHTML = renderVoteInputs('securityCouncil');
+        updateVoteVisualization();
     }
 }
 
@@ -544,6 +946,21 @@ function updateEventForm() {
                         <input type="number" id="newEventDuration" value="300" min="0">
                     </div>
                 `;
+    } else if (type === 'speeches') {
+        html = `
+                        <div class="form-group">
+                            <label>Subject/What are the speeches about?</label>
+                            <input type="text" id="newSpeechSubject" placeholder="e.g., Opening Statements">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Time (seconds)</label>
+                            <input type="number" id="newSpeechTotal" value="600" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Speaker Time (seconds)</label>
+                            <input type="number" id="newSpeechSpeaker" value="60" min="0">
+                        </div>
+                    `;
     }
 
     fieldsDiv.innerHTML = html;
@@ -579,6 +996,10 @@ function addNewEvent() {
         newEvent.duration = parseInt(
             document.getElementById('newEventDuration').value
         );
+    } else if (type === 'speeches') {
+        newEvent.speechSubject = (document.getElementById('newSpeechSubject').value || '').trim();
+        newEvent.totalTime = parseInt(document.getElementById('newSpeechTotal').value);
+        newEvent.speakerTime = parseInt(document.getElementById('newSpeechSpeaker').value);
     }
 
     // Find the index of closing remarks (or similar closing event)
@@ -632,6 +1053,7 @@ function saveJSON() {
     try {
         const newData = JSON.parse(document.getElementById('jsonEditor').value);
         appData = newData;
+        ensureDefaults();
         currentEventIndex = 0;
         init();
         closeJSONEditor();
@@ -691,6 +1113,7 @@ function handleLoadJSONFromFile(event) {
             const parsed = JSON.parse(text);
             validateAppData(parsed);
             appData = parsed;
+            ensureDefaults();
             currentEventIndex = 0;
             init();
             alert('JSON loaded successfully.');
@@ -730,6 +1153,14 @@ function validateAppData(data) {
                 throw new Error(`Unmoderated event missing duration at index ${i}`);
             }
         }
+        if (ev.type === 'speeches') {
+            if (typeof ev.totalTime !== 'number' || typeof ev.speakerTime !== 'number') {
+                throw new Error(`Speeches event missing times at index ${i}`);
+            }
+            if (ev.speechSubject !== undefined && typeof ev.speechSubject !== 'string') {
+                throw new Error(`Speeches event has invalid subject at index ${i}`);
+            }
+        }
         // Optional: generic timer in seconds for any event type
         if (ev.timer !== undefined && (typeof ev.timer !== 'number' || ev.timer < 0)) {
             throw new Error(`Event at index ${i} has invalid timer (must be a non-negative number of seconds)`);
@@ -744,3 +1175,35 @@ function validateAppData(data) {
 
 // Initialize on load
 window.addEventListener('DOMContentLoaded', init);
+
+// General Speeches: subject + total and per-speaker timers
+function renderGeneralSpeeches(event) {
+    const subject = event.speechSubject ? `<div class="event-topic">${event.speechSubject}</div>` : '';
+    timers.total.time = event.totalTime;
+    timers.total.initial = event.totalTime;
+    timers.speaker.time = event.speakerTime;
+    timers.speaker.initial = event.speakerTime;
+    return `
+        ${subject}
+        <div class="dual-timer">
+            <div class="timer-section">
+                <div class="timer-label">Total Time</div>
+                <div class="timer-display" id="totalTimer">${formatTime(timers.total.time)}</div>
+                <div class="timer-controls">
+                    <button class="timer-btn" onclick="startTimer('total')">Start</button>
+                    <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
+                    <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
+                </div>
+            </div>
+            <div class="timer-section">
+                <div class="timer-label">Speaker Time</div>
+                <div class="timer-display" id="speakerTimer">${formatTime(timers.speaker.time)}</div>
+                <div class="timer-controls">
+                    <button class="timer-btn" onclick="startTimer('speaker')">Start</button>
+                    <button class="timer-btn pause" onclick="pauseTimer('speaker')">Pause</button>
+                    <button class="timer-btn reset" onclick="resetTimer('speaker')">Reset</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
