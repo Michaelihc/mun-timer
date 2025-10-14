@@ -11,7 +11,8 @@ Vibe-coded using **Claude Sonnet 4.5**. Initial Prompt:
 > Build this using HTML CSS and JS. Include the default json in the code.
 
 # Screenshots:
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/970ca463-e6fb-422d-b293-8ce002d95b5b" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/21056f7d-1ac4-4d1b-940b-4e3230a80679" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/3b6e97f6-49cd-4c0a-a231-195a25d68846" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/55079492-8a9d-4372-88b0-e3ad3845ac08" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/ad3248a0-c82f-4af3-8d14-6b92e19fa2b6" />
 <img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/cda9e289-0609-445f-8c45-4ef33c3d635b" />
