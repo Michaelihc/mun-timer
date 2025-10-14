@@ -286,7 +286,7 @@ function renderDelegates() {
     bar.innerHTML = `
         <div class="chair-badge">👤 ${appData.chair.name}</div>
         ${delegatesHTML}
-        <div style="font-size: 0.85em; color: #6c757d; width: 100%; text-align: center; padding: 4px 0; margin-top: 8px;">
+        <div style="font-size: 0.85em; color: #6c757d; width: 100%; text-align: center;">
             💡 Click delegate badges to set attendance: Present / Present and Voting / Absent
         </div>
     `;
@@ -1837,6 +1837,9 @@ function createEventFromMotion() {
         newEvent.speakerTime = params.speakerTime;
     } else if (motion.type === 'unmoderated' && params.duration) {
         newEvent.duration = params.duration;
+    } else if (motion.id === 'yield_time' && params.extension) {
+        // Add timer for time extension events
+        newEvent.timer = params.extension;
     }
 
     // Update subtitle with specific details (only if custom subtitle wasn't provided)
@@ -1845,6 +1848,9 @@ function createEventFromMotion() {
             newEvent.subtitle = params.documentTitle;
         } else if (params.agendaItem) {
             newEvent.subtitle = params.agendaItem;
+        } else if (params.extension) {
+            // For time extensions, show the extension time in subtitle
+            newEvent.subtitle = `${params.extension} seconds`;
         } else if (params.topicId) {
             const topic = appData.topics.find(t => t.id === params.topicId);
             if (topic) newEvent.subtitle = topic.title;

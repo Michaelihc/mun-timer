@@ -33,6 +33,24 @@ body {
 
 .left-panel {
     flex: 0 0 250px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.left-panel h2 {
+    flex-shrink: 0;
+}
+
+#topicsList {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+.left-panel .add-button {
+    flex-shrink: 0;
 }
 
 .center-panel {
@@ -886,6 +904,10 @@ body {
     padding: 20px;
     margin: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    max-height: 35vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .motions-panel h2 {
@@ -894,6 +916,7 @@ body {
     font-size: 1.2em;
     border-bottom: 2px solid #667eea;
     padding-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .motions-grid {
@@ -916,6 +939,7 @@ body {
     transition: all 0.3s;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .add-motion-button:hover {
@@ -928,10 +952,11 @@ body {
 }
 
 .motion-queue {
-    max-height: 400px;
     overflow-y: auto;
     overflow-x: hidden;
     margin-bottom: 16px;
+    flex: 1;
+    min-height: 0;
 }
 
 .motion-queue-item {
@@ -1114,6 +1139,9 @@ body {
     border-radius: 8px;
     padding: 16px;
     border-left: 4px solid #667eea;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .voting-display h3 {
