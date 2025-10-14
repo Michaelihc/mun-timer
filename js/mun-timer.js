@@ -97,6 +97,90 @@ let timers = {
     speaker: { time: 0, interval: null, running: false, initial: 0 },
 };
 
+// Motion definitions sorted by disturbance level
+const motionTypes = [
+    {
+        id: 'suspension',
+        title: 'Suspension of the Meeting / Adjournment',
+        disturbance: 1,
+        type: 'general',
+        requiresParams: false,
+        eventTitle: 'Meeting Suspended',
+        eventSubtitle: 'Session Adjourned'
+    },
+    {
+        id: 'unmoderated',
+        title: 'Unmoderated Caucus',
+        disturbance: 2,
+        type: 'unmoderated',
+        requiresParams: true,
+        params: ['duration'],
+        eventTitle: 'Unmoderated Caucus',
+        eventSubtitle: 'Informal Discussion'
+    },
+    {
+        id: 'moderated',
+        title: 'Moderated Caucus',
+        disturbance: 3,
+        type: 'moderated',
+        requiresParams: true,
+        params: ['totalTime', 'speakerTime', 'topic'],
+        eventTitle: 'Moderated Caucus',
+        eventSubtitle: 'Formal Discussion'
+    },
+    {
+        id: 'introduce_document',
+        title: 'Introduce Draft Resolution / Working Paper',
+        disturbance: 4,
+        type: 'general',
+        requiresParams: true,
+        params: ['documentTitle'],
+        eventTitle: 'Document Introduction',
+        eventSubtitle: ''
+    },
+    {
+        id: 'close_debate',
+        title: 'Close Debate',
+        disturbance: 5,
+        type: 'general',
+        requiresParams: false,
+        eventTitle: 'Debate Closed',
+        eventSubtitle: 'Moving to Voting Procedure'
+    },
+    {
+        id: 'set_agenda',
+        title: 'Set/Change Agenda',
+        disturbance: 6,
+        type: 'general',
+        requiresParams: true,
+        params: ['agendaItem'],
+        eventTitle: 'Agenda Set',
+        eventSubtitle: ''
+    },
+    {
+        id: 'yield_time',
+        title: 'Yield Time / Extend Speaking Time',
+        disturbance: 7,
+        type: 'general',
+        requiresParams: true,
+        params: ['extension'],
+        eventTitle: 'Time Extension',
+        eventSubtitle: ''
+    }
+];
+
+// Current motion being voted on
+let currentMotion = null;
+
+// Motion queue - list of submitted motions awaiting voting
+let motionQueue = [];
+
+// Counter for unique motion IDs
+let motionIdCounter = 1;
+
+// Delegate attendance tracking
+let delegateAttendance = {}; // { delegateId: 'none' | 'present' | 'present-voting' | 'absent' }
+
 // Ensure optional configs exist when loading/applying JSON
 function ensureDefaults() {
     // Voting config
@@ -132,6 +216,7 @@ function init() {
     renderTopics();
     renderTimeline();
     renderDelegates();
+    renderMotions(); // Add motions rendering
     if (appData.events.length > 0) {
         setCurrentEvent(0);
     }
@@ -186,15 +271,26 @@ function renderTimeline() {
 // Render Delegates
 function renderDelegates() {
     const bar = document.getElementById('delegatesBar');
-    bar.innerHTML = `
-                <div class="chair-badge">👤 ${appData.chair.name}</div>
-                ${appData.delegates
-            .map((d) => `<div class="delegate-badge" title="${d.name}">${d.code}</div>`)
-            .join('')}
-            `;
-}
 
-// Move Topic
+    const delegatesHTML = appData.delegates.map((d) => {
+        let classes = 'delegate-badge';
+        const attendance = delegateAttendance[d.id] || 'none';
+
+        if (attendance === 'present') classes += ' present';
+        else if (attendance === 'present-voting') classes += ' present-voting';
+        else if (attendance === 'absent') classes += ' absent';
+
+        return `<div class="${classes}" title="${d.name}" onclick="cycleAttendance(${d.id})">${d.code}</div>`;
+    }).join('');
+
+    bar.innerHTML = `
+        <div class="chair-badge">👤 ${appData.chair.name}</div>
+        ${delegatesHTML}
+        <div style="font-size: 0.85em; color: #6c757d; width: 100%; text-align: center; padding: 4px 0; margin-top: 8px;">
+            💡 Click delegate badges to set attendance: Present / Present and Voting / Absent
+        </div>
+    `;
+}// Move Topic
 function moveTopic(index, direction) {
     if (index + direction < 0 || index + direction >= appData.topics.length)
         return;
@@ -202,6 +298,42 @@ function moveTopic(index, direction) {
     appData.topics[index] = appData.topics[index + direction];
     appData.topics[index + direction] = temp;
     renderTopics();
+}
+
+// Cycle delegate attendance
+let currentAttendanceDelegate = null;
+
+function cycleAttendance(delegateId) {
+    const delegate = appData.delegates.find(d => d.id === delegateId);
+    if (!delegate) return;
+
+    currentAttendanceDelegate = delegateId;
+
+    const modal = document.getElementById('attendanceModal');
+    const delegateLabel = document.getElementById('attendanceDelegate');
+
+    const currentStatus = delegateAttendance[delegateId] || 'none';
+    let statusText = '';
+    if (currentStatus === 'present') statusText = ' - Currently: Present';
+    else if (currentStatus === 'present-voting') statusText = ' - Currently: Present and Voting';
+    else if (currentStatus === 'absent') statusText = ' - Currently: Absent';
+
+    delegateLabel.textContent = `${delegate.name} (${delegate.code})${statusText}`;
+    modal.style.display = 'flex';
+}
+
+function setAttendance(status) {
+    if (currentAttendanceDelegate === null) return;
+
+    delegateAttendance[currentAttendanceDelegate] = status;
+    renderDelegates();
+    closeAttendanceModal();
+}
+
+function closeAttendanceModal() {
+    const modal = document.getElementById('attendanceModal');
+    modal.style.display = 'none';
+    currentAttendanceDelegate = null;
 }
 
 // Move Event
@@ -1206,4 +1338,534 @@ function renderGeneralSpeeches(event) {
             </div>
         </div>
     `;
+}
+
+// ========== MOTIONS SYSTEM ==========
+
+// Render motions panel
+function renderMotions() {
+    const queueContainer = document.getElementById('motionQueue');
+    if (!queueContainer) return;
+
+    if (motionQueue.length === 0) {
+        queueContainer.innerHTML = '<div class="motion-queue-empty">No motions submitted yet</div>';
+        return;
+    }
+
+    // Sort motions by disturbance level (lower = more disruptive = higher priority)
+    // Then sort moderated caucuses by speaker time (shorter = higher priority)
+    const sortedMotions = [...motionQueue].sort((a, b) => {
+        // Primary sort: by disturbance level
+        const disturbanceDiff = a.motion.disturbance - b.motion.disturbance;
+        if (disturbanceDiff !== 0) return disturbanceDiff;
+
+        // Secondary sort: if both are moderated caucuses, sort by speaker time (shorter first)
+        if (a.motion.id === 'moderated' && b.motion.id === 'moderated') {
+            const aSpeakerTime = a.params.speakerTime || Infinity;
+            const bSpeakerTime = b.params.speakerTime || Infinity;
+            return aSpeakerTime - bSpeakerTime;
+        }
+
+        return 0;
+    });
+
+    queueContainer.innerHTML = sortedMotions.map(item => {
+        let paramsText = '';
+        const params = item.params;
+
+        // Show custom title/subtitle if provided
+        if (params.customTitle) {
+            paramsText += `Title: ${params.customTitle} · `;
+        }
+        if (params.customSubtitle) {
+            paramsText += `Subtitle: ${params.customSubtitle} · `;
+        }
+        if (params.duration) {
+            paramsText += `Duration: ${params.duration / 60} min · `;
+        }
+        if (params.totalTime) {
+            paramsText += `Total: ${params.totalTime / 60} min · `;
+        }
+        if (params.speakerTime) {
+            paramsText += `Speaker: ${params.speakerTime}s · `;
+        }
+        if (params.topicId) {
+            const topic = appData.topics.find(t => t.id === params.topicId);
+            if (topic) paramsText += `Topic: ${topic.title} · `;
+        }
+        if (params.documentTitle) {
+            paramsText += `Doc: ${params.documentTitle} · `;
+        }
+        if (params.agendaItem) {
+            paramsText += `Agenda: ${params.agendaItem} · `;
+        }
+        if (params.extension) {
+            paramsText += `Extension: ${params.extension}s · `;
+        }
+
+        // Remove trailing separator
+        paramsText = paramsText.replace(/ · $/, '');
+
+        return `
+            <div class="motion-queue-item">
+                <div class="motion-header">
+                    <div style="display: flex; align-items: center;">
+                        <span class="disturbance-badge">${item.motion.disturbance}</span>
+                        <span class="motion-title-text">${item.motion.title}</span>
+                    </div>
+                    <div class="motion-actions">
+                        <button class="motion-action-btn vote-btn" onclick="startVotingOnMotion(${item.id})">Vote</button>
+                        <button class="motion-action-btn remove-btn" onclick="removeMotionFromQueue(${item.id})">✗</button>
+                    </div>
+                </div>
+                ${paramsText ? `<div class="motion-params">${paramsText}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Add motion to queue
+function addMotionToQueue(motion, params) {
+    const queueItem = {
+        id: motionIdCounter++,
+        motion: motion,
+        params: params,
+        timestamp: Date.now()
+    };
+
+    motionQueue.push(queueItem);
+    renderMotions();
+}
+
+// Remove motion from queue
+function removeMotionFromQueue(motionId) {
+    motionQueue = motionQueue.filter(item => item.id !== motionId);
+    renderMotions();
+}
+
+// Start voting on a specific motion from the queue
+function startVotingOnMotion(motionId) {
+    const queueItem = motionQueue.find(item => item.id === motionId);
+    if (!queueItem) return;
+
+    // Set as current motion
+    currentMotion = {
+        queueId: queueItem.id,
+        motion: queueItem.motion,
+        params: queueItem.params,
+        votes: { yes: 0, no: 0, abstain: 0 }
+    };
+
+    showVotingDisplay();
+}
+
+// Clear all motions from queue
+function clearMotionQueue() {
+    motionQueue = [];
+    renderMotions();
+}
+
+// Open motion modal
+function openMotionModal(motionId) {
+    const motion = motionTypes.find(m => m.id === motionId);
+    if (!motion) return;
+
+    const modal = document.getElementById('motionModal');
+    const title = document.getElementById('motionModalTitle');
+    const form = document.getElementById('motionParamsForm');
+
+    title.textContent = `Motion: ${motion.title}`;
+
+    if (!motion.requiresParams) {
+        form.innerHTML = '<p style="color: #6c757d; margin: 12px 0;">This motion requires no additional parameters.</p>';
+    } else {
+        let formHTML = '';
+
+        // Add title and subtitle fields for moderated and unmoderated caucuses
+        if (motion.id === 'moderated' || motion.id === 'unmoderated') {
+            formHTML += `
+                <div class="form-group">
+                    <label>Title (Optional)</label>
+                    <input type="text" id="motionTitle" placeholder="${motion.eventTitle}" value="">
+                </div>
+                <div class="form-group">
+                    <label>Subtitle (Optional)</label>
+                    <input type="text" id="motionSubtitle" placeholder="${motion.eventSubtitle}" value="">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('duration')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Duration (minutes)</label>
+                    <input type="number" id="motionDuration" min="1" max="60" value="10" placeholder="Duration in minutes">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('totalTime')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Total Time (minutes)</label>
+                    <input type="number" id="motionTotalTime" min="1" max="120" value="10" placeholder="Total time in minutes">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('speakerTime')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Speaker Time (seconds)</label>
+                    <input type="number" id="motionSpeakerTime" min="10" max="300" value="60" placeholder="Speaker time in seconds">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('topic')) {
+            const topicsOptions = appData.topics.map(t =>
+                `<option value="${t.id}">${t.title}</option>`
+            ).join('');
+            formHTML += `
+                <div class="form-group">
+                    <label>Topic (Optional)</label>
+                    <select id="motionTopic">
+                        <option value="">None</option>
+                        ${topicsOptions}
+                    </select>
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('documentTitle')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Document Title</label>
+                    <input type="text" id="motionDocTitle" placeholder="e.g., Draft Resolution 1.1" value="">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('agendaItem')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Agenda Item</label>
+                    <input type="text" id="motionAgendaItem" placeholder="New agenda item" value="">
+                </div>
+            `;
+        }
+
+        if (motion.params.includes('extension')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Time Extension (seconds)</label>
+                    <input type="number" id="motionExtension" min="10" max="300" value="30" placeholder="Extension in seconds">
+                </div>
+            `;
+        }
+
+        form.innerHTML = formHTML;
+    }
+
+    modal.style.display = 'flex';
+    modal.dataset.motionId = motionId;
+}
+
+// Close motion modal
+function closeMotionModal() {
+    const modal = document.getElementById('motionModal');
+    modal.style.display = 'none';
+    delete modal.dataset.motionId;
+}
+
+// Submit motion for voting
+function submitMotion() {
+    const modal = document.getElementById('motionModal');
+    const motionId = modal.dataset.motionId;
+    const motion = motionTypes.find(m => m.id === motionId);
+
+    if (!motion) return;
+
+    // Collect parameters
+    const params = {};
+
+    // Capture custom title and subtitle for moderated/unmoderated caucuses
+    if (motion.id === 'moderated' || motion.id === 'unmoderated') {
+        const customTitle = document.getElementById('motionTitle')?.value;
+        const customSubtitle = document.getElementById('motionSubtitle')?.value;
+
+        if (customTitle && customTitle.trim()) {
+            params.customTitle = customTitle.trim();
+        }
+        if (customSubtitle && customSubtitle.trim()) {
+            params.customSubtitle = customSubtitle.trim();
+        }
+    }
+
+    if (motion.params && motion.params.includes('duration')) {
+        const val = document.getElementById('motionDuration')?.value;
+        params.duration = val ? parseInt(val) * 60 : 600; // Convert to seconds
+    }
+
+    if (motion.params && motion.params.includes('totalTime')) {
+        const val = document.getElementById('motionTotalTime')?.value;
+        params.totalTime = val ? parseInt(val) * 60 : 600;
+    }
+
+    if (motion.params && motion.params.includes('speakerTime')) {
+        const val = document.getElementById('motionSpeakerTime')?.value;
+        params.speakerTime = val ? parseInt(val) : 60;
+    }
+
+    if (motion.params && motion.params.includes('topic')) {
+        const val = document.getElementById('motionTopic')?.value;
+        params.topicId = val ? parseInt(val) : null;
+    }
+
+    if (motion.params && motion.params.includes('documentTitle')) {
+        params.documentTitle = document.getElementById('motionDocTitle')?.value || 'Untitled Document';
+    }
+
+    if (motion.params && motion.params.includes('agendaItem')) {
+        params.agendaItem = document.getElementById('motionAgendaItem')?.value || 'New Agenda Item';
+    }
+
+    if (motion.params && motion.params.includes('extension')) {
+        const val = document.getElementById('motionExtension')?.value;
+        params.extension = val ? parseInt(val) : 30;
+    }
+
+    // Add motion to queue instead of immediately voting
+    addMotionToQueue(motion, params);
+
+    closeMotionModal();
+}
+
+// Open motion type selection panel
+function openMotionTypePanel() {
+    const modal = document.getElementById('motionTypeModal');
+    const list = document.getElementById('motionTypesList');
+
+    // Render motion types sorted by disturbance
+    list.innerHTML = motionTypes.map(motion => `
+        <div class="motion-type-option" onclick="openMotionModal('${motion.id}'); closeMotionTypePanel();">
+            <span class="disturbance-badge">${motion.disturbance}</span>
+            <div class="motion-info">
+                <div class="motion-name">${motion.title}</div>
+            </div>
+        </div>
+    `).join('');
+
+    modal.style.display = 'flex';
+}
+
+// Close motion type selection panel
+function closeMotionTypePanel() {
+    const modal = document.getElementById('motionTypeModal');
+    modal.style.display = 'none';
+}
+
+// Show voting display
+function showVotingDisplay() {
+    const display = document.getElementById('votingDisplay');
+    const details = document.getElementById('motionDetails');
+
+    if (!currentMotion) return;
+
+    // Build motion details text
+    let detailsHTML = `
+        <div class="motion-title">${currentMotion.motion.title}</div>
+    `;
+
+    if (currentMotion.params) {
+        let paramsText = '';
+
+        if (currentMotion.params.customTitle) {
+            paramsText += `Title: ${currentMotion.params.customTitle}<br>`;
+        }
+        if (currentMotion.params.customSubtitle) {
+            paramsText += `Subtitle: ${currentMotion.params.customSubtitle}<br>`;
+        }
+        if (currentMotion.params.duration) {
+            paramsText += `Duration: ${currentMotion.params.duration / 60} minutes<br>`;
+        }
+        if (currentMotion.params.totalTime) {
+            paramsText += `Total Time: ${currentMotion.params.totalTime / 60} minutes<br>`;
+        }
+        if (currentMotion.params.speakerTime) {
+            paramsText += `Speaker Time: ${currentMotion.params.speakerTime} seconds<br>`;
+        }
+        if (currentMotion.params.topicId) {
+            const topic = appData.topics.find(t => t.id === currentMotion.params.topicId);
+            if (topic) paramsText += `Topic: ${topic.title}<br>`;
+        }
+        if (currentMotion.params.documentTitle) {
+            paramsText += `Document: ${currentMotion.params.documentTitle}<br>`;
+        }
+        if (currentMotion.params.agendaItem) {
+            paramsText += `Agenda: ${currentMotion.params.agendaItem}<br>`;
+        }
+        if (currentMotion.params.extension) {
+            paramsText += `Extension: ${currentMotion.params.extension} seconds<br>`;
+        }
+
+        if (paramsText) {
+            detailsHTML += `<div class="motion-params">${paramsText}</div>`;
+        }
+    }
+
+    details.innerHTML = detailsHTML;
+
+    // Reset input fields
+    document.getElementById('yesInput').value = 0;
+    document.getElementById('noInput').value = 0;
+    document.getElementById('abstainInput').value = 0;
+
+    updateVotingDisplay();
+    display.style.display = 'block';
+}
+
+// Update voting display
+function updateVotingDisplay() {
+    if (!currentMotion) return;
+
+    const yesVotes = currentMotion.votes.yes;
+    const noVotes = currentMotion.votes.no;
+    const abstainVotes = currentMotion.votes.abstain;
+
+    // Simple majority: more than half of votes cast (excluding abstentions for the threshold)
+    const votesForMajority = yesVotes + noVotes;
+    const required = Math.floor(votesForMajority / 2) + 1;
+
+    document.getElementById('requiredVotes').textContent = required;
+
+    const resultDiv = document.getElementById('votingResult');
+
+    if (votesForMajority === 0) {
+        resultDiv.className = 'voting-result pending';
+        resultDiv.textContent = 'Enter vote counts';
+    } else if (yesVotes >= required) {
+        resultDiv.className = 'voting-result passed';
+        resultDiv.textContent = `✓ MOTION PASSES (${yesVotes} Yes / ${noVotes} No / ${abstainVotes} Abstain)`;
+    } else {
+        resultDiv.className = 'voting-result failed';
+        resultDiv.textContent = `✗ MOTION FAILS (${yesVotes} Yes / ${noVotes} No / ${abstainVotes} Abstain)`;
+    }
+}
+
+// Update voting from input fields
+function updateVotingFromInputs() {
+    if (!currentMotion) return;
+
+    const yesInput = document.getElementById('yesInput');
+    const noInput = document.getElementById('noInput');
+    const abstainInput = document.getElementById('abstainInput');
+
+    currentMotion.votes.yes = parseInt(yesInput.value) || 0;
+    currentMotion.votes.no = parseInt(noInput.value) || 0;
+    currentMotion.votes.abstain = parseInt(abstainInput.value) || 0;
+
+    updateVotingDisplay();
+}
+
+// Finalize voting
+function finalizeVoting() {
+    if (!currentMotion) return;
+
+    const yesVotes = currentMotion.votes.yes;
+    const noVotes = currentMotion.votes.no;
+    const votesForMajority = yesVotes + noVotes;
+    const required = Math.floor(votesForMajority / 2) + 1;
+
+    if (votesForMajority === 0) {
+        alert('Please enter vote counts before finalizing.');
+        return;
+    }
+
+    if (yesVotes >= required) {
+        // Motion passes - create event
+        createEventFromMotion();
+
+        // Remove the voted motion from queue
+        if (currentMotion.queueId) {
+            removeMotionFromQueue(currentMotion.queueId);
+        }
+
+        // Clear all other motions from queue
+        clearMotionQueue();
+    } else {
+        // Motion fails - just remove it from queue
+        if (currentMotion.queueId) {
+            removeMotionFromQueue(currentMotion.queueId);
+        }
+        setTimeout(() => clearMotionVoting(), 1500);
+    }
+}
+
+// Cancel motion voting
+function cancelMotionVoting() {
+    if (confirm('Cancel this motion without voting?')) {
+        // Remove from queue if it has a queue ID
+        if (currentMotion && currentMotion.queueId) {
+            removeMotionFromQueue(currentMotion.queueId);
+        }
+        clearMotionVoting();
+    }
+}
+
+// Create event from passed motion
+function createEventFromMotion() {
+    if (!currentMotion) return;
+
+    const motion = currentMotion.motion;
+    const params = currentMotion.params;
+
+    // Generate new event ID
+    const newId = Math.max(...appData.events.map(e => e.id), 0) + 1;
+
+    let newEvent = {
+        id: newId,
+        type: motion.type,
+        title: params.customTitle || motion.eventTitle,
+        subtitle: params.customSubtitle || motion.eventSubtitle,
+        topicId: params.topicId || null
+    };
+
+    // Add type-specific parameters
+    if (motion.type === 'moderated' && params.totalTime && params.speakerTime) {
+        newEvent.totalTime = params.totalTime;
+        newEvent.speakerTime = params.speakerTime;
+    } else if (motion.type === 'unmoderated' && params.duration) {
+        newEvent.duration = params.duration;
+    }
+
+    // Update subtitle with specific details (only if custom subtitle wasn't provided)
+    if (!params.customSubtitle) {
+        if (params.documentTitle) {
+            newEvent.subtitle = params.documentTitle;
+        } else if (params.agendaItem) {
+            newEvent.subtitle = params.agendaItem;
+        } else if (params.topicId) {
+            const topic = appData.topics.find(t => t.id === params.topicId);
+            if (topic) newEvent.subtitle = topic.title;
+        }
+    }
+
+    // Add event to timeline
+    appData.events.push(newEvent);
+    renderTimeline();
+
+    // Switch to new event
+    const newIndex = appData.events.length - 1;
+    setCurrentEvent(newIndex);
+
+    // Clear motion
+    setTimeout(() => clearMotionVoting(), 2000);
+}
+
+// Clear motion voting
+function clearMotionVoting() {
+    currentMotion = null;
+    const display = document.getElementById('votingDisplay');
+    display.style.display = 'none';
 }
