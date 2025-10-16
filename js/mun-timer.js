@@ -93,8 +93,8 @@ let appData = {
 
 let currentEventIndex = 0;
 let timers = {
-    total: { time: 0, interval: null, running: false, initial: 0 },
-    speaker: { time: 0, interval: null, running: false, initial: 0 },
+    total: { time: 0, interval: null, running: false, initial: 0, extension: 30 },
+    speaker: { time: 0, interval: null, running: false, initial: 0, extension: 30 },
 };
 
 // Motion definitions sorted by disturbance level
@@ -217,6 +217,7 @@ function init() {
     renderTimeline();
     renderDelegates();
     renderMotions(); // Add motions rendering
+    initMotionPanelResize(); // Initialize motion panel resize functionality
     if (appData.events.length > 0) {
         setCurrentEvent(0);
     }
@@ -436,6 +437,12 @@ function renderModeratedCaucus(event) {
                             <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
                             <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
                         </div>
+                        <div class="timer-extension">
+                            <label>Extension: <span id="totalExtensionLabel">${timers.total.extension}s</span></label>
+                            <input type="range" min="5" max="300" step="5" value="${timers.total.extension}" 
+                                   oninput="updateExtension('total', this.value)" class="extension-slider">
+                            <button class="timer-btn extend" onclick="extendTimer('total')">+ Extend</button>
+                        </div>
                     </div>
                     <div class="timer-section">
                         <div class="timer-label">Speaker Time</div>
@@ -446,6 +453,12 @@ function renderModeratedCaucus(event) {
                             <button class="timer-btn" onclick="startTimer('speaker')">Start</button>
                             <button class="timer-btn pause" onclick="pauseTimer('speaker')">Pause</button>
                             <button class="timer-btn reset" onclick="resetTimer('speaker')">Reset</button>
+                        </div>
+                        <div class="timer-extension">
+                            <label>Extension: <span id="speakerExtensionLabel">${timers.speaker.extension}s</span></label>
+                            <input type="range" min="5" max="300" step="5" value="${timers.speaker.extension}" 
+                                   oninput="updateExtension('speaker', this.value)" class="extension-slider">
+                            <button class="timer-btn extend" onclick="extendTimer('speaker')">+ Extend</button>
                         </div>
                     </div>
                 </div>
@@ -465,6 +478,12 @@ function renderUnmoderatedCaucus(event) {
                     <button class="timer-btn" onclick="startTimer('total')">Start</button>
                     <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
                     <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
+                </div>
+                <div class="timer-extension">
+                    <label>Extension: <span id="totalExtensionLabel">${timers.total.extension}s</span></label>
+                    <input type="range" min="5" max="300" step="5" value="${timers.total.extension}" 
+                           oninput="updateExtension('total', this.value)" class="extension-slider">
+                    <button class="timer-btn extend" onclick="extendTimer('total')">+ Extend</button>
                 </div>
             `;
 }
@@ -573,6 +592,12 @@ function renderGenericTimer(event) {
                     <button class="timer-btn" onclick="startTimer('total')">Start</button>
                     <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
                     <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
+                </div>
+                <div class="timer-extension">
+                    <label>Extension: <span id="totalExtensionLabel">${timers.total.extension}s</span></label>
+                    <input type="range" min="5" max="300" step="5" value="${timers.total.extension}" 
+                           oninput="updateExtension('total', this.value)" class="extension-slider">
+                    <button class="timer-btn extend" onclick="extendTimer('total')">+ Extend</button>
                 </div>
                 <div class="timer-config">
                     <label for="genericTimerSeconds">Timer (seconds)</label>
@@ -694,6 +719,36 @@ function applyGenericTimerSeconds() {
     const ev = appData.events[currentEventIndex];
     if (ev) {
         ev.timer = seconds;
+    }
+}
+
+// Extension Functions
+function updateExtension(type, value) {
+    timers[type].extension = parseInt(value, 10);
+    const label = document.getElementById(`${type}ExtensionLabel`);
+    if (label) {
+        label.textContent = `${value}s`;
+    }
+}
+
+function extendTimer(type) {
+    const extensionAmount = timers[type].extension;
+    timers[type].time += extensionAmount;
+    timers[type].initial += extensionAmount;
+
+    const timerElement = document.getElementById(
+        type === 'total' ? 'totalTimer' : 'speakerTimer'
+    );
+    if (timerElement) {
+        timerElement.textContent = formatTime(timers[type].time);
+        // Update color based on new remaining time
+        const percentage = (timers[type].time / timers[type].initial) * 100;
+        timerElement.classList.remove('warning', 'danger');
+        if (percentage <= 10) {
+            timerElement.classList.add('danger');
+        } else if (percentage <= 25) {
+            timerElement.classList.add('warning');
+        }
     }
 }
 
@@ -1326,6 +1381,12 @@ function renderGeneralSpeeches(event) {
                     <button class="timer-btn pause" onclick="pauseTimer('total')">Pause</button>
                     <button class="timer-btn reset" onclick="resetTimer('total')">Reset</button>
                 </div>
+                <div class="timer-extension">
+                    <label>Extension: <span id="totalExtensionLabel">${timers.total.extension}s</span></label>
+                    <input type="range" min="5" max="300" step="5" value="${timers.total.extension}" 
+                           oninput="updateExtension('total', this.value)" class="extension-slider">
+                    <button class="timer-btn extend" onclick="extendTimer('total')">+ Extend</button>
+                </div>
             </div>
             <div class="timer-section">
                 <div class="timer-label">Speaker Time</div>
@@ -1334,6 +1395,12 @@ function renderGeneralSpeeches(event) {
                     <button class="timer-btn" onclick="startTimer('speaker')">Start</button>
                     <button class="timer-btn pause" onclick="pauseTimer('speaker')">Pause</button>
                     <button class="timer-btn reset" onclick="resetTimer('speaker')">Reset</button>
+                </div>
+                <div class="timer-extension">
+                    <label>Extension: <span id="speakerExtensionLabel">${timers.speaker.extension}s</span></label>
+                    <input type="range" min="5" max="300" step="5" value="${timers.speaker.extension}" 
+                           oninput="updateExtension('speaker', this.value)" class="extension-slider">
+                    <button class="timer-btn extend" onclick="extendTimer('speaker')">+ Extend</button>
                 </div>
             </div>
         </div>
@@ -1891,4 +1958,58 @@ function toggleMotionsPanel() {
         btn.textContent = '−';
         btn.title = 'Hide Motion Panel';
     }
+}
+
+// Motion panel resizing functionality
+function initMotionPanelResize() {
+    const resizeHandle = document.getElementById('motionsResizeHandle');
+    const motionsPanel = document.getElementById('motionsPanel');
+
+    if (!resizeHandle || !motionsPanel) return;
+
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        // Don't resize if panel is collapsed
+        if (motionsPanel.classList.contains('collapsed')) return;
+
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = motionsPanel.offsetHeight;
+
+        motionsPanel.classList.add('resizing');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        // Calculate new height (inverted because we're dragging from top)
+        const deltaY = startY - e.clientY;
+        const newHeight = startHeight + deltaY;
+
+        // Set minimum and maximum heights
+        const minHeight = 150; // Minimum height to show content
+        const maxHeight = window.innerHeight * 0.7; // Max 70% of viewport
+
+        if (newHeight >= minHeight && newHeight <= maxHeight) {
+            motionsPanel.style.maxHeight = `${newHeight}px`;
+        }
+
+        e.preventDefault();
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            motionsPanel.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
 }

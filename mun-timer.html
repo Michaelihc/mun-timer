@@ -44,11 +44,16 @@
     <div class="motions-panel" id="motionsPanel">
         <div class="motions-header">
             <h2>📜 Motions</h2>
-            <button class="toggle-panel-btn" onclick="toggleMotionsPanel()" title="Hide Motion Panel">−</button>
+            <div class="motions-header-buttons">
+                <button class="resize-panel-btn" id="motionsResizeHandle" title="Drag to Resize">⇕</button>
+                <button class="toggle-panel-btn" onclick="toggleMotionsPanel()" title="Hide Motion Panel">−</button>
+            </div>
         </div>
         <div class="motions-content" id="motionsContent">
-            <button class="add-motion-button" onclick="openMotionTypePanel()">+ Add Motion</button>
-            <div class="motion-queue" id="motionQueue"></div>
+            <div class="motion-list-container">
+                <button class="add-motion-button" onclick="openMotionTypePanel()">+ Add Motion</button>
+                <div class="motion-queue" id="motionQueue"></div>
+            </div>
             <div class="voting-display" id="votingDisplay" style="display: none;">
                 <h3>Current Motion Voting</h3>
                 <div class="motion-details" id="motionDetails"></div>

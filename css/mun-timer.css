@@ -286,6 +286,71 @@ body {
     background: #dc3545;
 }
 
+.timer-btn.extend {
+    background: #28a745;
+}
+
+/* Timer Extension Controls */
+.timer-extension {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background: #ffffff;
+    border-radius: 8px;
+}
+
+.timer-extension label {
+    color: #666;
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.extension-slider {
+    width: 100%;
+    max-width: 300px;
+    height: 6px;
+    background: #ddd;
+    border-radius: 5px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.extension-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #28a745;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+
+.extension-slider::-webkit-slider-thumb:hover {
+    background: #218838;
+    transform: scale(1.2);
+}
+
+.extension-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #28a745;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    transition: all 0.3s;
+}
+
+.extension-slider::-moz-range-thumb:hover {
+    background: #218838;
+    transform: scale(1.2);
+}
+
 /* Generic timer quick config */
 .timer-config {
     margin-top: 15px;
@@ -909,10 +974,15 @@ body {
     flex-direction: column;
     overflow: hidden;
     transition: max-height 0.3s ease;
+    position: relative;
 }
 
 .motions-panel.collapsed {
     max-height: 80px;
+}
+
+.motions-panel.resizing {
+    transition: none;
 }
 
 .motions-header {
@@ -932,6 +1002,17 @@ body {
     flex: 1;
 }
 
+.motions-header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.motions-panel.collapsed .motions-header-buttons .resize-panel-btn {
+    display: none;
+}
+
+.resize-panel-btn,
 .toggle-panel-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -946,14 +1027,20 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.resize-panel-btn {
+    cursor: ns-resize;
     margin-left: 10px;
 }
 
+.resize-panel-btn:hover,
 .toggle-panel-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.resize-panel-btn:active,
 .toggle-panel-btn:active {
     transform: scale(0.95);
 }
@@ -962,9 +1049,10 @@ body {
     flex: 1;
     min-height: 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     overflow: hidden;
     transition: opacity 0.3s ease;
+    gap: 16px;
 }
 
 .motions-panel.collapsed .motions-content {
@@ -1001,6 +1089,14 @@ body {
 
 .add-motion-button:active {
     transform: translateY(0);
+}
+
+.motion-list-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .motion-queue {
@@ -1194,6 +1290,8 @@ body {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .voting-display h3 {
