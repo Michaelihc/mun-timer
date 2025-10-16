@@ -41,38 +41,43 @@
     </div>
 
     <!-- Motions Panel -->
-    <div class="motions-panel">
-        <h2>📜 Motions</h2>
-        <button class="add-motion-button" onclick="openMotionTypePanel()">+ Add Motion</button>
-        <div class="motion-queue" id="motionQueue"></div>
-        <div class="voting-display" id="votingDisplay" style="display: none;">
-            <h3>Current Motion Voting</h3>
-            <div class="motion-details" id="motionDetails"></div>
-            <div class="voting-status">
-                <div class="vote-inputs">
-                    <div class="vote-input-group yes">
-                        <label for="yesInput">Yes:</label>
-                        <input type="number" id="yesInput" min="0" value="0" oninput="updateVotingFromInputs()">
+    <div class="motions-panel" id="motionsPanel">
+        <div class="motions-header">
+            <h2>📜 Motions</h2>
+            <button class="toggle-panel-btn" onclick="toggleMotionsPanel()" title="Hide Motion Panel">−</button>
+        </div>
+        <div class="motions-content" id="motionsContent">
+            <button class="add-motion-button" onclick="openMotionTypePanel()">+ Add Motion</button>
+            <div class="motion-queue" id="motionQueue"></div>
+            <div class="voting-display" id="votingDisplay" style="display: none;">
+                <h3>Current Motion Voting</h3>
+                <div class="motion-details" id="motionDetails"></div>
+                <div class="voting-status">
+                    <div class="vote-inputs">
+                        <div class="vote-input-group yes">
+                            <label for="yesInput">Yes:</label>
+                            <input type="number" id="yesInput" min="0" value="0" oninput="updateVotingFromInputs()">
+                        </div>
+                        <div class="vote-input-group no">
+                            <label for="noInput">No:</label>
+                            <input type="number" id="noInput" min="0" value="0" oninput="updateVotingFromInputs()">
+                        </div>
+                        <div class="vote-input-group abstain">
+                            <label for="abstainInput">Abstain:</label>
+                            <input type="number" id="abstainInput" min="0" value="0" oninput="updateVotingFromInputs()">
+                        </div>
                     </div>
-                    <div class="vote-input-group no">
-                        <label for="noInput">No:</label>
-                        <input type="number" id="noInput" min="0" value="0" oninput="updateVotingFromInputs()">
-                    </div>
-                    <div class="vote-input-group abstain">
-                        <label for="abstainInput">Abstain:</label>
-                        <input type="number" id="abstainInput" min="0" value="0" oninput="updateVotingFromInputs()">
+                    <div class="majority-indicator">
+                        Required: <span class="threshold" id="requiredVotes">0</span>
                     </div>
                 </div>
-                <div class="majority-indicator">
-                    Required: <span class="threshold" id="requiredVotes">0</span>
+                <div class="voting-result pending" id="votingResult">
+                    Enter vote counts
                 </div>
-            </div>
-            <div class="voting-result pending" id="votingResult">
-                Enter vote counts
-            </div>
-            <div class="modal-buttons" style="margin-top: 12px;">
-                <button class="modal-btn secondary" onclick="cancelMotionVoting()">Cancel Motion</button>
-                <button class="modal-btn primary" onclick="finalizeVoting()">Finalize Vote</button>
+                <div class="modal-buttons" style="margin-top: 12px;">
+                    <button class="modal-btn secondary" onclick="cancelMotionVoting()">Cancel Motion</button>
+                    <button class="modal-btn primary" onclick="finalizeVoting()">Finalize Vote</button>
+                </div>
             </div>
         </div>
     </div>

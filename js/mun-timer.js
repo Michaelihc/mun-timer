@@ -1875,3 +1875,20 @@ function clearMotionVoting() {
     const display = document.getElementById('votingDisplay');
     display.style.display = 'none';
 }
+
+// Toggle motions panel visibility
+function toggleMotionsPanel() {
+    const panel = document.getElementById('motionsPanel');
+    const btn = event.target;
+
+    panel.classList.toggle('collapsed');
+
+    // Update button text based on state
+    if (panel.classList.contains('collapsed')) {
+        btn.textContent = '+';
+        btn.title = 'Show Motion Panel';
+    } else {
+        btn.textContent = '−';
+        btn.title = 'Hide Motion Panel';
+    }
+}
