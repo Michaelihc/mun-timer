@@ -203,19 +203,19 @@ body {
     font-size: 2.5em;
     font-weight: bold;
     color: #667eea;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .event-subtitle {
     font-size: 1.5em;
     color: #666;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .event-topic {
     font-size: 1.1em;
     color: #888;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
     font-style: italic;
 }
 
@@ -625,7 +625,9 @@ body {
 /* Delegates Bar */
 .delegates-bar {
     background: white;
-    padding: 15px 20px;
+    border-radius: 10px;
+    padding: 10px 15px;
+    margin: 0 20px 0 20px;
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -967,7 +969,7 @@ body {
     background: white;
     border-radius: 10px;
     padding: 20px;
-    margin: 0 20px 20px 20px;
+    margin: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     max-height: 35vh;
     display: flex;
