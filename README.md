@@ -1,16 +1,23 @@
 # MUN Timer
-A customizable GUI timer tailored for Model United Nations (MUN) sessions. Designed for single-client use by the chair, it enables hybrid MUN formats—seamlessly blending online and in-person participants—without requiring any network connectivity. Features include intuitive controls for speech durations, caucus timing, and moderated debates, with easy customization of presets, visual alerts, and audio cues to streamline session management.
+A customizable GUI timer tailored for Model United Nations (MUN) sessions. Designed for single-client use by the chair, it enables hybrid MUN formats—seamlessly blending online and in-person participants—without requiring any network connectivity. 
+
+# Features
+- Timeline to keep track of events over multiple sessions
+- Feature-rich Voting and Motioning System
+- Simple Roll Calls
+- Caucus timing
+- Flexible events
+- Visual alerts and audio cues
 
 # Screenshots:
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/21056f7d-1ac4-4d1b-940b-4e3230a80679" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/3b6e97f6-49cd-4c0a-a231-195a25d68846" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/55079492-8a9d-4372-88b0-e3ad3845ac08" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/ad3248a0-c82f-4af3-8d14-6b92e19fa2b6" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/cda9e289-0609-445f-8c45-4ef33c3d635b" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/205acc5c-55e4-4d82-9c4d-4b2f9414f88b" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/ab270698-e9b6-46eb-959e-653ef8c01d4f" />
-<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/b1f2f437-3efd-4598-9536-f36cdade5395" />
-
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/f6c7ad60-40f3-4944-91e1-4dd11a88290b" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/e254dd08-8667-40f7-bf13-d7250865a504" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/030e65a1-1a26-48fe-8a27-1d8dabe9b6ed" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/c5345578-276c-4162-be21-591b5eea3a35" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/78cf2cfb-3021-4d5b-b54d-02909591fa18" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/25b92e04-3fad-484a-a3f2-c1ed5f5816df" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/7d0d94f2-ab94-46f6-9dd1-8b7c282c62eb" />
+<img width="2880" height="1920" alt="image" src="https://github.com/user-attachments/assets/b163de27-ba99-47c6-b5a6-5cff5349d5c3" />
 67
 
 ## Save/Load JSON
