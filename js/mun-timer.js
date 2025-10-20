@@ -104,7 +104,8 @@ const motionTypes = [
         title: 'Suspension of the Meeting / Adjournment',
         disturbance: 1,
         type: 'general',
-        requiresParams: false,
+        requiresParams: true,
+        params: ['timer'],
         eventTitle: 'Meeting Suspended',
         eventSubtitle: 'Session Adjourned'
     },
@@ -134,7 +135,7 @@ const motionTypes = [
         disturbance: 4,
         type: 'general',
         requiresParams: true,
-        params: ['documentTitle'],
+        params: ['documentTitle', 'timer'],
         eventTitle: 'Document Introduction',
         eventSubtitle: ''
     },
@@ -143,7 +144,8 @@ const motionTypes = [
         title: 'Close Debate',
         disturbance: 5,
         type: 'general',
-        requiresParams: false,
+        requiresParams: true,
+        params: ['timer'],
         eventTitle: 'Debate Closed',
         eventSubtitle: 'Moving to Voting Procedure'
     },
@@ -153,7 +155,7 @@ const motionTypes = [
         disturbance: 6,
         type: 'general',
         requiresParams: true,
-        params: ['agendaItem'],
+        params: ['agendaItem', 'timer'],
         eventTitle: 'Agenda Set',
         eventSubtitle: ''
     },
@@ -1148,6 +1150,14 @@ function updateEventForm() {
                             <input type="number" id="newSpeechSpeaker" value="60" min="0">
                         </div>
                     `;
+    } else if (type === 'general' || type === 'voting') {
+        html = `
+                    <div class="form-group">
+                        <label>Timer (seconds) - Optional</label>
+                        <input type="number" id="newEventTimer" min="0" placeholder="Leave empty for no timer">
+                        <small style="color: #6c757d; display: block; margin-top: 4px;">If left empty, no timer will be set for this event</small>
+                    </div>
+                `;
     }
 
     fieldsDiv.innerHTML = html;
@@ -1187,6 +1197,11 @@ function addNewEvent() {
         newEvent.speechSubject = (document.getElementById('newSpeechSubject').value || '').trim();
         newEvent.totalTime = parseInt(document.getElementById('newSpeechTotal').value);
         newEvent.speakerTime = parseInt(document.getElementById('newSpeechSpeaker').value);
+    } else if (type === 'general' || type === 'voting') {
+        const timerValue = document.getElementById('newEventTimer')?.value;
+        if (timerValue && parseInt(timerValue) > 0) {
+            newEvent.timer = parseInt(timerValue);
+        }
     }
 
     // Find the index of closing remarks (or similar closing event)
@@ -1631,6 +1646,16 @@ function openMotionModal(motionId) {
             `;
         }
 
+        if (motion.params.includes('timer')) {
+            formHTML += `
+                <div class="form-group">
+                    <label>Timer (seconds) - Optional</label>
+                    <input type="number" id="motionTimer" min="0" placeholder="Leave empty for no timer">
+                    <small style="color: #6c757d; display: block; margin-top: 4px;">If left empty, no timer will be set for this event</small>
+                </div>
+            `;
+        }
+
         form.innerHTML = formHTML;
     }
 
@@ -1700,6 +1725,13 @@ function submitMotion() {
     if (motion.params && motion.params.includes('extension')) {
         const val = document.getElementById('motionExtension')?.value;
         params.extension = val ? parseInt(val) : 30;
+    }
+
+    if (motion.params && motion.params.includes('timer')) {
+        const val = document.getElementById('motionTimer')?.value;
+        if (val && parseInt(val) > 0) {
+            params.timer = parseInt(val);
+        }
     }
 
     // Add motion to queue instead of immediately voting
@@ -1907,6 +1939,9 @@ function createEventFromMotion() {
     } else if (motion.id === 'yield_time' && params.extension) {
         // Add timer for time extension events
         newEvent.timer = params.extension;
+    } else if (motion.type === 'general' && params.timer) {
+        // Add timer for general events if specified
+        newEvent.timer = params.timer;
     }
 
     // Update subtitle with specific details (only if custom subtitle wasn't provided)
